@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Expense Manager</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Theme color (Android Chrome toolbar) -->
+    <meta name="theme-color" content="#6366f1">
+
+    <!-- iOS / Safari PWA support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Expenses">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
+
+    <!-- App icons for various devices -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512x512.png">
+
+    <!-- Chart.js for Pie Chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=2.1">
+</head>
+<body>
+    <!-- App Container -->
+    <div id="app-container">
+        <!-- LOGIN VIEW -->
+        <section id="login-view" class="view active-view">
+            <div class="glass-card login-card">
+                <h1>Expense Manager v2.1</h1>
+                <p>Please enter your PIN to continue</p>
+                <div class="input-group">
+                    <input type="password" id="pin-input" placeholder="Enter PIN" inputmode="numeric" maxlength="4">
+                </div>
+                <button id="login-btn" class="primary-btn">Login</button>
+                <p id="login-error" class="error-msg"></p>
+            </div>
+            <div style="position: absolute; bottom: 24px; left: 0; right: 0; text-align: center; color: rgba(255, 255, 255, 0.4); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.5px;">
+                v23 &bull; Updated: 05 Oct 2026
+            </div>
+        </section>
+
+        <!-- DASHBOARD VIEW -->
+        <section id="dashboard-view" class="view">
+            <header class="dashboard-header">
+                <h2>Dashboard</h2>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button id="settings-btn" class="icon-btn" title="Settings">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </button>
+                    <button id="logout-btn" class="icon-btn" title="Logout">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    </button>
+                </div>
+            </header>
+
+            <div class="summary-cards">
+                <div class="glass-card summary-card">
+                    <h3>Monthly Spending</h3>
+                    <p id="monthly-total">₹0</p>
+                </div>
+                <div class="glass-card summary-card">
+                    <h3>Yearly Spending</h3>
+                    <p id="yearly-total">₹0</p>
+                </div>
+            </div>
+
+            <div class="glass-card chart-card">
+                <h3>Last 6 Months Trend</h3>
+                <div class="chart-container">
+                    <canvas id="trend-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card chart-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;">Month Breakdown</h3>
+                    <select id="breakdown-month-selector" style="background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px solid var(--card-border); padding: 0.3rem 0.5rem; border-radius: 4px; font-size: 0.85rem; outline: none; cursor: pointer;">
+                        <!-- Options injected by JS -->
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="category-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card recent-card">
+                <h3>Recent Expenses</h3>
+                <div id="recent-expenses-list">
+                    <p class="loading-text">Loading...</p>
+                </div>
+                <button id="view-all-btn" class="secondary-btn" style="width: 100%; margin-top: 1rem; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-main); padding: 0.8rem; border-radius: var(--radius-md); cursor: pointer; transition: all 0.3s ease;">View All Expenses</button>
+            </div>
+
+            <!-- Floating Action Button -->
+            <button id="fab-add" class="fab">
+                <svg viewBox="0 0 24 24" width="30" height="30" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+        </section>
+
+        <!-- ADD EXPENSE MODAL -->
+        <div id="add-modal" class="modal">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <h2>Add Expense</h2>
+                    <button id="close-modal-btn" class="icon-btn">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <form id="add-expense-form">
+                    <div class="input-group">
+                        <label for="exp-date">Date</label>
+                        <input type="date" id="exp-date" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="exp-amount">Amount</label>
+                        <input type="number" id="exp-amount" placeholder="0.00" step="0.01" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="exp-account">Paid From</label>
+                        <select id="exp-account" required>
+                            <option value="" disabled selected>Select account</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="exp-category">Expense Category</label>
+                        <select id="exp-category" required>
+                            <option value="" disabled selected>Select category</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="exp-desc">Description</label>
+                        <input type="text" id="exp-desc" placeholder="What was this for?" required>
+                    </div>
+
+                    <button type="submit" id="update-btn" class="primary-btn">Update</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- ALL EXPENSES MODAL -->
+        <div id="all-expenses-modal" class="modal">
+            <div class="modal-content glass-card" style="max-height: 85vh; display: flex; flex-direction: column;">
+                <div class="modal-header">
+                    <h2>All Expenses</h2>
+                    <button id="close-all-expenses-btn" class="icon-btn">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div id="all-expenses-list" style="overflow-y: auto; flex-grow: 1; padding-right: 0.5rem;">
+                    <!-- All expenses injected here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- MONTH BREAKDOWN MODAL -->
+        <div id="breakdown-modal" class="modal">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <h2 id="breakdown-month-title">Month Breakdown</h2>
+                    <button id="close-breakdown-btn" class="icon-btn">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="chart-container" style="height: 250px; margin-bottom: 1.5rem;">
+                    <canvas id="breakdown-chart"></canvas>
+                </div>
+                <div id="breakdown-list" style="max-height: 200px; overflow-y: auto;">
+                    <!-- Breakdown items injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- SETTINGS MODAL -->
+        <div id="settings-modal" class="modal">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button id="close-settings-btn" class="icon-btn">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="settings-options">
+                    <button id="opt-change-password" class="settings-btn">Change Password</button>
+                    <button id="opt-edit-paid-from" class="settings-btn">Edit 'Paid From' Options</button>
+                    <button id="opt-edit-category" class="settings-btn">Edit 'Expense Category' Options</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHANGE PASSWORD MODAL -->
+        <div id="change-password-modal" class="modal">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <h2>Change Password</h2>
+                    <button id="close-change-pwd-btn" class="icon-btn">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <form id="change-pwd-form">
+                    <div class="input-group">
+                        <label for="old-pin">Old PIN</label>
+                        <input type="password" id="old-pin" placeholder="Enter Old PIN" inputmode="numeric" maxlength="4" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="new-pin">New PIN</label>
+                        <input type="password" id="new-pin" placeholder="Enter New PIN" inputmode="numeric" maxlength="4" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="confirm-pin">Confirm New PIN</label>
+                        <input type="password" id="confirm-pin" placeholder="Confirm New PIN" inputmode="numeric" maxlength="4" required>
+                    </div>
+                    <p id="pwd-error" class="error-msg"></p>
+                    <button type="submit" class="primary-btn">Update Password</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- MANAGE OPTIONS MODAL -->
+        <div id="manage-options-modal" class="modal">
+            <div class="modal-content glass-card" style="max-height: 85vh; display: flex; flex-direction: column;">
+                <div class="modal-header">
+                    <h2 id="manage-options-title">Manage Options</h2>
+                    <button id="close-manage-options-btn" class="icon-btn">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div id="manage-options-list" style="overflow-y: auto; flex-grow: 1; padding-right: 0.5rem; margin-bottom: 1rem;">
+                    <!-- Items injected here -->
+                </div>
+                <form id="add-option-form" style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                    <div class="input-group" style="flex-grow: 1; margin-bottom: 0;">
+                        <input type="text" id="new-option-input" placeholder="Add new option" required>
+                    </div>
+                    <button type="submit" class="primary-btn" style="width: auto; margin-top: 0;">Add</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="overlay hidden">
+            <div class="glass-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2.5rem 3rem; width: 90%; max-width: 400px;">
+                <div class="spinner"></div>
+                <p id="loading-text" style="margin: 0;">Loading...</p>
+            </div>
+        </div>
+
+        <!-- SUCCESS MODAL -->
+        <div id="success-modal" class="modal">
+            <div class="modal-content glass-card" style="text-align: center;">
+                <svg viewBox="0 0 24 24" width="48" height="48" stroke="var(--success)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                <h2 style="margin-bottom: 0.5rem;">Update Successful</h2>
+                <p>Your expense has been added.</p>
+                <button id="close-success-btn" class="primary-btn" style="margin-top: 1.5rem;">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Compat SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.4.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore-compat.js"></script>
+
+    <script src="app.js?v=2.1"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./service-worker.js')
+            .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+            .catch(err => console.warn('[PWA] Service Worker registration failed:', err));
+        });
+      }
+    </script>
+</body>
+</html>
