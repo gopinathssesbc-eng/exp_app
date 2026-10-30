@@ -1,6 +1,6 @@
 // Expense Manager PWA - Service Worker
 // Cache version: bump this when you update the app
-const CACHE_NAME = 'expense-manager-v2.1';
+const CACHE_NAME = 'expense-manager-v24';
 
 // Files to cache for offline use
 const STATIC_ASSETS = [
