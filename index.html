@@ -27,7 +27,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=24">
+    <link rel="stylesheet" href="style.css?v=28">
 </head>
 <body>
     <!-- App Container -->
@@ -44,7 +44,7 @@
                 <p id="login-error" class="error-msg"></p>
             </div>
             <div style="position: absolute; bottom: 24px; left: 0; right: 0; text-align: center; color: rgba(255, 255, 255, 0.4); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.5px;">
-                v24 &bull; Updated: 29 Oct 2026
+                v28 &bull; Updated: 01 Nov 2026
             </div>
         </section>
 
@@ -93,7 +93,12 @@
             </div>
 
             <div class="glass-card recent-card">
-                <h3>Recent Expenses</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 id="recent-expenses-title" style="margin: 0;">Recent Expenses</h3>
+                    <button id="clear-category-filter-btn" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; cursor: pointer; align-items: center; gap: 0.3rem; transition: all 0.2s ease;">
+                        <span>Clear Filter</span> &times;
+                    </button>
+                </div>
                 <div id="recent-expenses-list">
                     <p class="loading-text">Loading...</p>
                 </div>
@@ -272,14 +277,25 @@
     <script src="https://www.gstatic.com/firebasejs/10.4.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore-compat.js"></script>
 
-    <script src="app.js?v=24"></script>
+    <script src="app.js?v=28"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>
       if ('serviceWorker' in navigator) {
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
+
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('./service-worker.js')
-            .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+            .then(reg => {
+              console.log('[PWA] Service Worker registered:', reg.scope);
+              reg.update();
+            })
             .catch(err => console.warn('[PWA] Service Worker registration failed:', err));
         });
       }

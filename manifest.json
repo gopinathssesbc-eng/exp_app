@@ -2,7 +2,7 @@
   "name": "Expense Manager",
   "short_name": "Expenses",
   "description": "Personal expense tracker with Firebase sync",
-  "start_url": "./index.html",
+  "start_url": "./index.html?mode=standalone",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f172a",

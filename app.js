@@ -22,6 +22,7 @@ let editingRowIndex = null;
 let chartInstance = null;
 let trendChartInstance = null;
 let breakdownChartInstance = null;
+let selectedCategoryFilter = null;
 let appSettings = { paidFrom: [], categories: [] };
 let currentManagingOption = "";
 
@@ -60,6 +61,8 @@ const newOptionInput = document.getElementById('new-option-input');
 const monthlyTotalEl = document.getElementById('monthly-total');
 const yearlyTotalEl = document.getElementById('yearly-total');
 const recentExpensesList = document.getElementById('recent-expenses-list');
+const recentExpensesTitle = document.getElementById('recent-expenses-title');
+const clearCategoryFilterBtn = document.getElementById('clear-category-filter-btn');
 const categoryChartCanvas = document.getElementById('category-chart');
 const breakdownMonthSelector = document.getElementById('breakdown-month-selector');
 const trendChartCanvas = document.getElementById('trend-chart');
@@ -211,11 +214,34 @@ const fetchDataInBackground = async (pin) => {
     }
 };
 
-// Auto-login removed as per user request
-document.addEventListener('DOMContentLoaded', () => {
-    const cachedPin = localStorage.getItem('appPin');
-    if (cachedPin) {
-        // pinInput.value = cachedPin;
+// Detect if app is running as an installed PWA vs browser tab
+const isInstalledPWA = () => {
+    return (
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.matchMedia('(display-mode: fullscreen)').matches ||
+        window.navigator.standalone === true ||
+        window.location.search.includes('mode=standalone') ||
+        document.referrer.includes('android-app://')
+    );
+};
+
+// Auto-login only when running as an installed app; require PIN in browser
+document.addEventListener('DOMContentLoaded', async () => {
+    if (isInstalledPWA()) {
+        const cachedPin = localStorage.getItem('appPin');
+        if (cachedPin) {
+            userPin = cachedPin;
+            loginView.classList.remove('active-view');
+            dashboardView.classList.add('active-view');
+            showLoading("Syncing data...");
+            try {
+                await fetchDataInBackground(cachedPin);
+            } catch (err) {
+                console.error("Auto login fetch error:", err);
+            } finally {
+                hideLoading();
+            }
+        }
     }
 });
 
@@ -249,7 +275,9 @@ const populateDropdowns = () => {
 const handleLogout = () => {
     userPin = "";
     expenses = [];
+    selectedCategoryFilter = null;
     pinInput.value = "";
+    localStorage.removeItem('appPin');
     dashboardView.classList.remove('active-view');
     loginView.classList.add('active-view');
     if (chartInstance) {
@@ -361,7 +389,11 @@ const updateBreakdownChart = () => {
     updateChart(categoryTotals);
 };
 
-breakdownMonthSelector.addEventListener('change', updateBreakdownChart);
+breakdownMonthSelector.addEventListener('change', () => {
+    selectedCategoryFilter = null;
+    updateBreakdownChart();
+    updateRecentList();
+});
 
 const renderExpenses = (expenseArray, container) => {
     container.innerHTML = "";
@@ -397,13 +429,91 @@ const renderExpenses = (expenseArray, container) => {
     });
 };
 
-const updateRecentList = () => {
-    const recent = [...expenses].reverse().slice(0, 5);
-    renderExpenses(recent, recentExpensesList);
+const getRecentElements = () => {
+    let titleEl = document.getElementById('recent-expenses-title');
+    let clearBtn = document.getElementById('clear-category-filter-btn');
+    const recentCard = document.querySelector('.recent-card');
+
+    if (!titleEl && recentCard) {
+        titleEl = recentCard.querySelector('h3');
+        if (titleEl) titleEl.id = 'recent-expenses-title';
+    }
+
+    if (!clearBtn && recentCard) {
+        clearBtn = document.createElement('button');
+        clearBtn.id = 'clear-category-filter-btn';
+        clearBtn.style.cssText = 'display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; cursor: pointer; align-items: center; gap: 0.3rem; transition: all 0.2s ease; margin-left: auto;';
+        clearBtn.innerHTML = '<span>Clear Filter</span> &times;';
+
+        if (titleEl) {
+            let headerWrapper = titleEl.parentElement;
+            if (headerWrapper === recentCard) {
+                headerWrapper = document.createElement('div');
+                headerWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;';
+                recentCard.insertBefore(headerWrapper, titleEl);
+                headerWrapper.appendChild(titleEl);
+                titleEl.style.margin = '0';
+            }
+            headerWrapper.appendChild(clearBtn);
+        }
+    }
+
+    if (clearBtn && !clearBtn.dataset.hasListener) {
+        clearBtn.dataset.hasListener = "true";
+        clearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectedCategoryFilter = null;
+            updateBreakdownChart();
+            updateRecentList();
+        });
+    }
+
+    return { titleEl, clearBtn };
 };
 
-// Event Delegation for Edit & Delete buttons
+const updateRecentList = () => {
+    const { titleEl, clearBtn } = getRecentElements();
+    
+    if (selectedCategoryFilter) {
+        if (titleEl) {
+            titleEl.innerHTML = `Recent Expenses <span style="font-size: 0.85rem; font-weight: 500; color: #818cf8; margin-left: 0.35rem;">(${selectedCategoryFilter})</span>`;
+        }
+        if (clearBtn) {
+            clearBtn.style.display = 'inline-flex';
+        }
+        
+        // Filter all-time expenses for this category, latest on top
+        const filtered = expenses
+            .filter(exp => (exp.Category || "Other").trim().toLowerCase() === selectedCategoryFilter.trim().toLowerCase())
+            .sort((a, b) => new Date(b.Date) - new Date(a.Date));
+            
+        renderExpenses(filtered, recentExpensesList);
+    } else {
+        if (titleEl) {
+            titleEl.innerText = 'Recent Expenses';
+        }
+        if (clearBtn) {
+            clearBtn.style.display = 'none';
+        }
+        
+        // Default: 5 most recent expenses, newest on top
+        const recent = [...expenses]
+            .sort((a, b) => new Date(b.Date) - new Date(a.Date))
+            .slice(0, 5);
+        renderExpenses(recent, recentExpensesList);
+    }
+};
+
+// Event Delegation for Edit & Delete buttons & Clear Filter
 document.getElementById('app-container').addEventListener('click', async (e) => {
+    const clearFilterBtn = e.target.closest('#clear-category-filter-btn');
+    if (clearFilterBtn) {
+        selectedCategoryFilter = null;
+        updateBreakdownChart();
+        updateRecentList();
+        return;
+    }
+
     const editBtn = e.target.closest('.edit-btn');
     const deleteBtn = e.target.closest('.delete-btn');
     
@@ -488,14 +598,35 @@ const updateChart = (categoryTotals) => {
         chartContainer.style.height = '250px';
     }
     
+    const backgroundColors = labels.map((cat, i) => {
+        const col = colors[i % colors.length];
+        if (!selectedCategoryFilter) return col;
+        return cat.trim().toLowerCase() === selectedCategoryFilter.trim().toLowerCase()
+            ? col
+            : (col + '44');
+    });
+
+    const borderColors = labels.map((cat) => {
+        if (!selectedCategoryFilter) return 'transparent';
+        return cat.trim().toLowerCase() === selectedCategoryFilter.trim().toLowerCase()
+            ? '#ffffff'
+            : 'transparent';
+    });
+
+    const borderWidths = labels.map((cat) => {
+        if (!selectedCategoryFilter) return 0;
+        return cat.trim().toLowerCase() === selectedCategoryFilter.trim().toLowerCase() ? 2 : 0;
+    });
+
     chartInstance = new Chart(categoryChartCanvas, {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [{
                 data: data,
-                backgroundColor: colors.slice(0, labels.length).map((c, i) => colors[i % colors.length]),
-                borderWidth: 0,
+                backgroundColor: backgroundColors,
+                borderColor: borderColors,
+                borderWidth: borderWidths,
                 borderRadius: 4
             }]
         },
@@ -505,6 +636,40 @@ const updateChart = (categoryTotals) => {
             maintainAspectRatio: false,
             layout: {
                 padding: { right: 80 }
+            },
+            onHover: (event, chartElement) => {
+                if (event.native && event.native.target) {
+                    event.native.target.style.cursor = (chartElement && chartElement.length > 0) ? 'pointer' : 'default';
+                }
+            },
+            onClick: (event, elements, chart) => {
+                let index = -1;
+                if (elements && elements.length > 0) {
+                    index = elements[0].index;
+                } else if (chart && typeof chart.getElementsAtEventForMode === 'function') {
+                    const nearest = chart.getElementsAtEventForMode(event.native || event, 'nearest', { intersect: false, axis: 'y' }, true);
+                    if (nearest && nearest.length > 0) {
+                        index = nearest[0].index;
+                    }
+                }
+                
+                if (index >= 0 && index < labels.length) {
+                    const clickedCategory = labels[index];
+                    if (selectedCategoryFilter && selectedCategoryFilter.trim().toLowerCase() === clickedCategory.trim().toLowerCase()) {
+                        selectedCategoryFilter = null;
+                    } else {
+                        selectedCategoryFilter = clickedCategory;
+                    }
+                    updateChart(categoryTotals);
+                    updateRecentList();
+                    
+                    if (selectedCategoryFilter) {
+                        const recentCard = document.querySelector('.recent-card');
+                        if (recentCard) {
+                            recentCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }
+                }
             },
             plugins: {
                 legend: {
@@ -535,7 +700,6 @@ const updateChart = (categoryTotals) => {
                 const { ctx } = chart;
                 ctx.save();
                 ctx.font = '500 12px Inter, sans-serif';
-                ctx.fillStyle = '#f8fafc';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 
@@ -544,6 +708,9 @@ const updateChart = (categoryTotals) => {
                     meta.data.forEach((bar, index) => {
                         const value = dataset.data[index];
                         if (value > 0) {
+                            const cat = labels[index];
+                            const isSelected = !selectedCategoryFilter || (cat && cat.trim().toLowerCase() === selectedCategoryFilter.trim().toLowerCase());
+                            ctx.fillStyle = isSelected ? '#f8fafc' : '#64748b';
                             const formatted = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value);
                             ctx.fillText(formatted, bar.x + 8, bar.y);
                         }

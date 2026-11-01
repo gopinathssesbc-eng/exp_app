@@ -262,6 +262,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     margin-top: 1rem;
 }
 
+canvas#category-chart {
+    cursor: pointer;
+}
+
+#clear-category-filter-btn:hover {
+    background: rgba(239, 68, 68, 0.25) !important;
+    color: #ef4444 !important;
+}
+
 .recent-item {
     display: flex;
     justify-content: space-between;

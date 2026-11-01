@@ -1,6 +1,6 @@
 // Expense Manager PWA - Service Worker
 // Cache version: bump this when you update the app
-const CACHE_NAME = 'expense-manager-v24';
+const CACHE_NAME = 'expense-manager-v28';
 
 // Files to cache for offline use
 const STATIC_ASSETS = [
@@ -61,6 +61,22 @@ self.addEventListener('fetch', (event) => {
 
   if (isNetworkOnly) {
     event.respondWith(fetch(event.request).catch(() => new Response('', { status: 503 })));
+    return;
+  }
+
+  // Network-first for navigation (index.html) so code updates take effect immediately
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
     return;
   }
 
