@@ -571,6 +571,64 @@ document.getElementById('app-container').addEventListener('click', async (e) => 
 });
 
 
+let touchStartX = 0;
+let touchStartY = 0;
+let touchStartTime = 0;
+let lastChartSelectTime = 0;
+
+const handleChartCategorySelect = (clientY) => {
+    if (!chartInstance || !chartInstance.scales || !chartInstance.scales.y) return;
+    
+    const now = Date.now();
+    if (now - lastChartSelectTime < 300) return;
+    
+    const rect = categoryChartCanvas.getBoundingClientRect();
+    const clickY = clientY - rect.top;
+    const yScale = chartInstance.scales.y;
+    
+    if (clickY < yScale.top - 15 || clickY > yScale.bottom + 15) return;
+    
+    const rawIndex = yScale.getValueForPixel(clickY);
+    if (isNaN(rawIndex)) return;
+    
+    const index = Math.round(rawIndex);
+    const labels = chartInstance.data.labels;
+    if (index >= 0 && index < labels.length) {
+        lastChartSelectTime = now;
+        const clickedCategory = labels[index];
+        if (selectedCategoryFilter && selectedCategoryFilter.trim().toLowerCase() === clickedCategory.trim().toLowerCase()) {
+            selectedCategoryFilter = null;
+        } else {
+            selectedCategoryFilter = clickedCategory;
+        }
+        updateBreakdownChart();
+        updateRecentList();
+        
+        if (selectedCategoryFilter) {
+            const recentCard = document.querySelector('.recent-card');
+            if (recentCard) {
+                recentCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+    }
+};
+
+categoryChartCanvas.addEventListener('pointerdown', (e) => {
+    touchStartX = e.clientX;
+    touchStartY = e.clientY;
+    touchStartTime = Date.now();
+});
+
+categoryChartCanvas.addEventListener('pointerup', (e) => {
+    const deltaX = Math.abs(e.clientX - touchStartX);
+    const deltaY = Math.abs(e.clientY - touchStartY);
+    const duration = Date.now() - touchStartTime;
+    // Intentional tap/click (not a scroll gesture)
+    if (deltaX < 15 && deltaY < 15 && duration < 500) {
+        handleChartCategorySelect(e.clientY);
+    }
+});
+
 const updateChart = (categoryTotals) => {
     // Convert to array and sort descending by amount
     const sortedCategories = Object.entries(categoryTotals)
@@ -635,7 +693,7 @@ const updateChart = (categoryTotals) => {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: { right: 80 }
+                padding: { right: 80, left: 5 }
             },
             onHover: (event, chartElement) => {
                 if (event.native && event.native.target) {
@@ -643,32 +701,9 @@ const updateChart = (categoryTotals) => {
                 }
             },
             onClick: (event, elements, chart) => {
-                let index = -1;
-                if (elements && elements.length > 0) {
-                    index = elements[0].index;
-                } else if (chart && typeof chart.getElementsAtEventForMode === 'function') {
-                    const nearest = chart.getElementsAtEventForMode(event.native || event, 'nearest', { intersect: false, axis: 'y' }, true);
-                    if (nearest && nearest.length > 0) {
-                        index = nearest[0].index;
-                    }
-                }
-                
-                if (index >= 0 && index < labels.length) {
-                    const clickedCategory = labels[index];
-                    if (selectedCategoryFilter && selectedCategoryFilter.trim().toLowerCase() === clickedCategory.trim().toLowerCase()) {
-                        selectedCategoryFilter = null;
-                    } else {
-                        selectedCategoryFilter = clickedCategory;
-                    }
-                    updateChart(categoryTotals);
-                    updateRecentList();
-                    
-                    if (selectedCategoryFilter) {
-                        const recentCard = document.querySelector('.recent-card');
-                        if (recentCard) {
-                            recentCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                        }
-                    }
+                const clientY = (event.native && event.native.clientY) || (event.y !== undefined ? event.y + chart.canvas.getBoundingClientRect().top : null);
+                if (clientY !== null) {
+                    handleChartCategorySelect(clientY);
                 }
             },
             plugins: {
@@ -676,11 +711,7 @@ const updateChart = (categoryTotals) => {
                     display: false
                 },
                 tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(context.parsed.x);
-                        }
-                    }
+                    enabled: false
                 }
             },
             scales: {
@@ -690,7 +721,11 @@ const updateChart = (categoryTotals) => {
                 },
                 y: {
                     grid: { display: false },
-                    ticks: { color: '#94a3b8', font: { family: 'Inter' } }
+                    ticks: { 
+                        color: '#94a3b8', 
+                        font: { family: 'Inter', size: window.innerWidth < 480 ? 11 : 12 },
+                        autoSkip: false
+                    }
                 }
             }
         },

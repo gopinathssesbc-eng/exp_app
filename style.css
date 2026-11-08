@@ -264,6 +264,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 canvas#category-chart {
     cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 #clear-category-filter-btn:hover {
