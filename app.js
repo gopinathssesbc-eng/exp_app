@@ -214,36 +214,61 @@ const fetchDataInBackground = async (pin) => {
     }
 };
 
-// Detect if app is running as an installed PWA vs browser tab
+// Detect if app is running as an installed PWA vs regular browser tab
 const isInstalledPWA = () => {
     return (
         window.matchMedia('(display-mode: standalone)').matches ||
         window.matchMedia('(display-mode: fullscreen)').matches ||
+        window.matchMedia('(display-mode: minimal-ui)').matches ||
         window.navigator.standalone === true ||
         window.location.search.includes('mode=standalone') ||
         document.referrer.includes('android-app://')
     );
 };
 
-// Auto-login only when running as an installed app; require PIN in browser
-document.addEventListener('DOMContentLoaded', async () => {
+// Auto-bypass login ONLY in installed app; ALWAYS require password in web browser
+const checkAppModeAndAuth = async () => {
     if (isInstalledPWA()) {
-        const cachedPin = localStorage.getItem('appPin');
-        if (cachedPin) {
-            userPin = cachedPin;
-            loginView.classList.remove('active-view');
-            dashboardView.classList.add('active-view');
-            showLoading("Syncing data...");
+        console.log("[PWA] Running as installed app: bypassing login screen...");
+        loginView.classList.remove('active-view');
+        dashboardView.classList.add('active-view');
+        showLoading("Loading Expense Manager...");
+
+        let pin = localStorage.getItem('appPin');
+        if (!pin) {
             try {
-                await fetchDataInBackground(cachedPin);
+                const settingsDoc = await db.collection("settings").doc(currentProfile).get();
+                if (settingsDoc.exists && settingsDoc.data().pin) {
+                    pin = settingsDoc.data().pin;
+                } else {
+                    pin = "0488";
+                }
+                localStorage.setItem('appPin', pin);
             } catch (err) {
-                console.error("Auto login fetch error:", err);
-            } finally {
-                hideLoading();
+                pin = "0488";
             }
         }
+
+        userPin = pin;
+        try {
+            await fetchDataInBackground(pin);
+        } catch (err) {
+            console.error("[PWA] Auto login fetch error:", err);
+        } finally {
+            hideLoading();
+        }
+    } else {
+        console.log("[Browser] Running in web browser: PIN login required.");
+        loginView.classList.add('active-view');
+        dashboardView.classList.remove('active-view');
     }
-});
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', checkAppModeAndAuth);
+} else {
+    checkAppModeAndAuth();
+}
 
 const populateDropdowns = () => {
     const expAccount = document.getElementById('exp-account');
